@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useTheme } from 'next-themes'
+import { useSession } from 'next-auth/react'
 import {
   ArrowRight,
   BookOpen,
@@ -69,6 +70,7 @@ const steps = [
 
 export default function LandingPage() {
   const { theme, setTheme } = useTheme()
+  const { data: session } = useSession()
 
   return (
     <div className="min-h-screen bg-[#c4d8c0] dark:bg-[#8aa886]">
@@ -109,12 +111,20 @@ export default function LandingPage() {
                 <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                 <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
               </Button>
-              <Button variant="secondary" size="sm" asChild className="rounded-full">
-                <Link href="/onboarding">Sign in</Link>
-              </Button>
-              <Button size="sm" asChild className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
-                <Link href="/onboarding">Get Started</Link>
-              </Button>
+              {session ? (
+                <Button size="sm" asChild className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
+                  <Link href="/dashboard">Go to Dashboard</Link>
+                </Button>
+              ) : (
+                <>
+                  <Button variant="secondary" size="sm" asChild className="rounded-full">
+                    <Link href="/onboarding">Sign in</Link>
+                  </Button>
+                  <Button size="sm" asChild className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
+                    <Link href="/onboarding">Get Started</Link>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </header>
@@ -138,14 +148,24 @@ export default function LandingPage() {
               one unified dashboard built for serious students.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Button size="lg" asChild className="gap-2 px-8 rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
-                <Link href="/onboarding">
-                  Get Started Free <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="secondary" asChild className="rounded-full">
-                <Link href="/dashboard">View Demo</Link>
-              </Button>
+              {session ? (
+                <Button size="lg" asChild className="gap-2 px-8 rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
+                  <Link href="/dashboard">
+                    Go to Dashboard <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              ) : (
+                <>
+                  <Button size="lg" asChild className="gap-2 px-8 rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
+                    <Link href="/onboarding">
+                      Get Started Free <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                  <Button size="lg" variant="secondary" asChild className="rounded-full">
+                    <Link href="/dashboard">View Demo</Link>
+                  </Button>
+                </>
+              )}
             </div>
             <p className="mt-4 text-xs text-muted-foreground">
               No credit card required · Google account login · Free for students

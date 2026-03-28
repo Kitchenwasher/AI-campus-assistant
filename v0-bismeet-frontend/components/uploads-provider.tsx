@@ -6,7 +6,7 @@ import { mockUploads, type UploadedFile } from '@/lib/mock-data'
 type UploadsContextType = {
   uploads: UploadedFile[]
   addUpload: (file: UploadedFile) => void
-  updateUploadStatus: (id: string, status: UploadedFile['status'], topicsExtracted?: number, extractedTopicsList?: string[], fileData?: string) => void
+  updateUploadStatus: (id: string, status: UploadedFile['status'], topicsExtracted?: number, extractedTopicsList?: string[], fileData?: string, localVectors?: any[]) => void
   removeUpload: (id: string) => void
   isDeveloper: boolean
   setIsDeveloper: (val: boolean) => void
@@ -84,10 +84,10 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
     setUploads((prev) => [file, ...prev])
   }
 
-  const updateUploadStatus = (id: string, status: UploadedFile['status'], topicsExtracted?: number, extractedTopicsList?: string[], fileData?: string) => {
+  const updateUploadStatus = (id: string, status: UploadedFile['status'], topicsExtracted?: number, extractedTopicsList?: string[], fileData?: string, localVectors?: any[]) => {
     setUploads((prev: UploadedFile[]) =>
       prev.map((u: UploadedFile) =>
-        u.id === id ? { ...u, status, ...(topicsExtracted !== undefined && { topicsExtracted }), ...(extractedTopicsList !== undefined && { extractedTopicsList }), ...(fileData !== undefined && { fileData }) } : u
+        u.id === id ? { ...u, status, ...(topicsExtracted !== undefined && { topicsExtracted }), ...(extractedTopicsList !== undefined && { extractedTopicsList }), ...(fileData !== undefined && { fileData }), ...(localVectors !== undefined && { localVectors }) } : u
       )
     )
   }

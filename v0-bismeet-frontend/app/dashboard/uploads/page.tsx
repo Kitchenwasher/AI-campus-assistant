@@ -118,21 +118,28 @@ export default function UploadsPage() {
           reader.onerror = error => reject(error)
         })
 
-        setTimeout(() => {
-          const numTopics = Math.floor(Math.random() * 15) + 5
-          let topicsList: string[] = []
-          
-          if (type === 'notes') {
-            const potentialTopics = ['Architecture', 'Analysis', 'Introduction', 'Summary', 'Key Concepts', 'Methods', 'Framework']
-            topicsList = [
-              `${subject} ${potentialTopics[Math.floor(Math.random() * potentialTopics.length)]}`,
-              `${potentialTopics[Math.floor(Math.random() * potentialTopics.length)]} Review`,
-              `Advanced ${subject}`
-            ]
-          }
-          
-          updateUploadStatus(id, 'processed', numTopics, topicsList.length > 0 ? topicsList : undefined, fileData)
-        }, 1000)
+        // Execute ephemeral mathematical embeddings completely statelessly!
+        const embedRes = await fetch('/api/embed-local', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ base64: fileData, docId: id })
+        })
+        
+        const { vectors } = await embedRes.json()
+
+        const numTopics = Math.floor(Math.random() * 15) + 5
+        let topicsList: string[] = []
+        
+        if (type === 'notes') {
+          const potentialTopics = ['Architecture', 'Analysis', 'Introduction', 'Summary', 'Key Concepts', 'Methods', 'Framework']
+          topicsList = [
+            `${subject} ${potentialTopics[Math.floor(Math.random() * potentialTopics.length)]}`,
+            `${potentialTopics[Math.floor(Math.random() * potentialTopics.length)]} Review`,
+            `Advanced ${subject}`
+          ]
+        }
+        
+        updateUploadStatus(id, 'processed', numTopics, topicsList.length > 0 ? topicsList : undefined, fileData, vectors)
 
       } catch (error) {
         console.error('File reading failed', error)
@@ -298,71 +305,81 @@ export default function UploadsPage() {
         </Card>
       )}
 
-      {/* Uploaded files list */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold">Uploaded Files</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {personalUploads.filter((u) => u.status !== 'processing').length === 0 ? (
-            <div className="text-center py-12">
+      {/* Uploaded files by section */}
+      <div className="space-y-4">
+        {personalUploads.filter((u) => u.status !== 'processing').length === 0 ? (
+          <Card>
+            <CardContent className="text-center py-12">
               <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-40" />
               <p className="text-sm text-muted-foreground">No personal files uploaded yet.</p>
               <p className="text-xs text-muted-foreground mt-1">Upload a PDF to get started.</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {personalUploads.filter((u) => u.status !== 'processing').map((f) => (
-                <div
-                  key={f.id}
-                  className="flex items-center gap-3 rounded-lg border border-border px-4 py-3 hover:bg-muted/40 transition-colors"
-                >
-                  <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">
-                      {f.name}
-                    </p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs text-muted-foreground">{f.size}</span>
-                      <span className="text-xs text-muted-foreground">·</span>
-                      <span className="text-xs text-muted-foreground">{f.uploadedAt}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Badge variant="outline" className={`text-xs border capitalize ${typeColors[f.type]}`}>
-                      {f.type}
-                    </Badge>
-                    <div className="flex items-center gap-1">
-                      {statusIcon[f.status]}
-                      <span className="text-xs text-muted-foreground">{statusLabel[f.status]}</span>
-                    </div>
-                    {f.topicsExtracted && (
-                      <span className="text-xs text-muted-foreground">{f.topicsExtracted} topics</span>
-                    )}
+            </CardContent>
+          </Card>
+        ) : (
+          uploadZones.map((zone) => {
+            const sectionFiles = personalUploads.filter((u) => u.status !== 'processing' && u.type === zone.type)
+            if (sectionFiles.length === 0) return null
 
-                    {f.fileData && (
-                      <a href={`data:application/pdf;base64,${f.fileData}`} download={f.name}>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary hover:bg-primary/10">
-                          <Download className="h-3.5 w-3.5" />
-                        </Button>
-                      </a>
-                    )}
-                    
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => removeUpload(f.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+            return (
+              <Card key={zone.type} className="border-border">
+                <CardHeader className="pb-3 flex flex-row items-center gap-2 space-y-0 relative overflow-hidden">
+                  <div className={`absolute top-0 left-0 w-1 h-full ${zone.bg.split('/')[0]}`} />
+                  <zone.icon className={`h-4 w-4 ${zone.color}`} />
+                  <CardTitle className="text-sm font-semibold">{zone.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {sectionFiles.map((f) => (
+                      <div
+                        key={f.id}
+                        className="flex items-center gap-3 rounded-lg border border-border px-4 py-3 hover:bg-muted/40 transition-colors"
+                      >
+                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {f.name}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-xs text-muted-foreground">{f.size}</span>
+                            <span className="text-xs text-muted-foreground">·</span>
+                            <span className="text-xs text-muted-foreground">{f.uploadedAt}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <div className="flex items-center gap-1">
+                            {statusIcon[f.status]}
+                            <span className="text-xs text-muted-foreground">{statusLabel[f.status]}</span>
+                          </div>
+                          {f.topicsExtracted && (
+                            <span className="text-xs text-muted-foreground">{f.topicsExtracted} topics</span>
+                          )}
+
+                          {f.fileData && (
+                            <a href={`data:application/pdf;base64,${f.fileData}`} download={f.name}>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary hover:bg-primary/10">
+                                <Download className="h-3.5 w-3.5" />
+                              </Button>
+                            </a>
+                          )}
+                          
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => removeUpload(f.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                </CardContent>
+              </Card>
+            )
+          })
+        )}
+      </div>
 
       {/* Extracted subjects preview */}
       <div>

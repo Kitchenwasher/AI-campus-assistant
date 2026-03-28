@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { promises as fs } from 'fs'
 import path from 'path'
+import { GoogleGenerativeAI } from '@google/generative-ai'
+
+function chunkText(text: string, chunkSize = 1000, overlap = 200) {
+  const chunks = []
+  for (let i = 0; i < text.length; i += chunkSize - overlap) {
+    let rawChunk = text.slice(i, i + chunkSize)
+    // Clean up whitespace formatting
+    chunks.push(rawChunk.replace(/\n+/g, ' ').trim())
+  }
+  return chunks.filter(c => c.length > 50) // drop tiny empty chunks
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -57,6 +68,59 @@ export async function POST(req: NextRequest) {
 
     libraryData.push(newMetadata)
     await fs.writeFile(libraryPath, JSON.stringify(libraryData, null, 2))
+
+    // 3. Vector Database Ingestion (RAG)
+    if (!process.env.GEMINI_API_KEY) {
+      console.warn('Skipping vector math: GEMINI_API_KEY not found.')
+      return NextResponse.json({ success: true, file: newMetadata })
+    }
+
+    try {
+      const pdfParse = require('pdf-parse')
+      const pdfData = await pdfParse(buffer)
+      if (pdfData.text) {
+        const chunks = chunkText(pdfData.text)
+        
+        // Use Gemini Embeddings Model
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+        const model = genAI.getGenerativeModel({ model: 'gemini-embedding-001' })
+        
+        // Batch requests mathematically
+        const requests = chunks.map(c => ({ 
+          content: { role: 'user', parts: [{ text: c }] } 
+        }))
+        
+        // Batch size max limit is usually around 100 for API
+        const batchVectors: any[] = []
+        for (let i = 0; i < requests.length; i += 50) {
+          const batchReqs = requests.slice(i, i + 50)
+          const result = await model.batchEmbedContents({ requests: batchReqs })
+          const embeddings = result.embeddings.map(e => e.values)
+          
+          embeddings.forEach((emb, j) => {
+            batchVectors.push({
+              text: chunks[i + j],
+              embedding: emb,
+              namespace: 'global',
+              docId: id
+            })
+          })
+        }
+
+        const vectorsPath = path.join(process.cwd(), 'public', 'global', 'vectors.json')
+        let vectors = []
+        if (require('fs').existsSync(vectorsPath)) {
+            const currentVecs = await fs.readFile(vectorsPath, 'utf8')
+            vectors = JSON.parse(currentVecs)
+        }
+        
+        // Append new mathematical chunks
+        vectors = vectors.concat(batchVectors)
+        await fs.writeFile(vectorsPath, JSON.stringify(vectors))
+      }
+    } catch (e) {
+      console.error('Vector DB Insertion failed:', e)
+    }
 
     return NextResponse.json({ success: true, file: newMetadata })
 

@@ -47,6 +47,7 @@ export type UploadedFile = {
   fileData?: string
   isGlobal?: boolean
   path?: string
+  localVectors?: { text: string; embedding: number[]; namespace: string; docId: string }[]
 }
 
 export const mockUploads: UploadedFile[] = [

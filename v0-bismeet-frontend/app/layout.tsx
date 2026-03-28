@@ -20,6 +20,8 @@ export const metadata: Metadata = {
   generator: 'v0.app',
 }
 
+import { AuthProvider } from '@/components/auth-provider'
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -28,9 +30,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${geistMono.variable} font-sans antialiased`}>
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-          {children}
-        </ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+            {children}
+          </ThemeProvider>
+        </AuthProvider>
         <Analytics />
       </body>
     </html>

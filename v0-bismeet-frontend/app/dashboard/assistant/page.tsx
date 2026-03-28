@@ -131,21 +131,16 @@ export default function AssistantPage() {
     setIsTyping(true)
 
     try {
-      const documents = uploads
-        .filter(u => u.status === 'processed' && (u.fileData || u.isGlobal))
-        .map(u => ({
-          name: u.name,
-          data: u.fileData,
-          isGlobal: u.isGlobal,
-          path: u.path
-        }))
+      const localVectors = uploads
+        .filter(u => u.status === 'processed' && u.localVectors)
+        .flatMap(u => u.localVectors ?? [])
 
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ messages: currentMessages, documents }),
+        body: JSON.stringify({ messages: currentMessages, localVectors }),
       })
       
       const data = await res.json()
